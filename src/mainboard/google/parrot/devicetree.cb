@@ -68,7 +68,26 @@ chip northbridge/intel/sandybridge
 			device ref me_ide_r off end # Management Engine IDE-R
 			device ref me_kt off end # Management Engine KT
 			device ref gbe off end # Intel Gigabit Ethernet
-			device ref ehci2 on end # USB2 EHCI #2
+			device ref ehci2 on
+				chip drivers/usb/acpi
+					device ref ehci_root_hub2 on
+						chip drivers/usb/acpi
+							device ref ehci_rm_hub2 on
+								chip drivers/usb/acpi
+									register "desc" = ""Bluetooth""
+									register "type" = "UPC_TYPE_INTERNAL"
+									device ref usb2_port9 on end
+								end
+								chip drivers/usb/acpi
+									register "desc" = ""Webcam""
+									register "type" = "UPC_TYPE_INTERNAL"
+									device ref usb2_port11 on end
+								end
+							end
+						end
+					end
+				end
+			end
 			device ref hda on end # High Definition Audio
 			device ref pcie_rp1 off end # PCIe Port #1
 			device ref pcie_rp2 on end # PCIe Port #2 (WLAN)
@@ -78,7 +97,31 @@ chip northbridge/intel/sandybridge
 			device ref pcie_rp6 off end # PCIe Port #6
 			device ref pcie_rp7 off end # PCIe Port #7
 			device ref pcie_rp8 off end # PCIe Port #8
-			device ref ehci1 on end # USB2 EHCI #1
+			device ref ehci1 on
+				chip drivers/usb/acpi
+					device ref ehci_root_hub1 on
+						chip drivers/usb/acpi
+							device ref ehci_rm_hub1 on
+								chip drivers/usb/acpi
+									register "desc" = ""Left USB Port""
+									register "type" = "UPC_TYPE_A"
+									device ref usb2_port1 on end
+								end
+								chip drivers/usb/acpi
+									register "desc" = ""Bottom Right USB Port""
+									register "type" = "UPC_TYPE_A"
+									device ref usb2_port2 on end
+								end
+								chip drivers/usb/acpi
+									register "desc" = ""Top Right USB Port""
+									register "type" = "UPC_TYPE_A"
+									device ref usb2_port4 on end
+								end
+							end
+						end
+					end
+				end
+			end
 			device ref pci_bridge off end # PCI bridge
 			device ref lpc on
 				chip ec/compal/ene932
