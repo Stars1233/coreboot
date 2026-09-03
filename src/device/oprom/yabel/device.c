@@ -73,6 +73,10 @@ biosemu_dev_get_addr_info(void)
 
 	DEBUG_PRINTF("bus: %x, devfn: %x\n", bus, devfn);
 	for (r = bios_device.dev->resource_list; r; r = r->next) {
+		/* Skip resources the allocator failed to place. */
+		if (!(r->flags & IORESOURCE_ASSIGNED))
+			continue;
+
 		translate_address_array[taa_index].info = r->flags;
 		translate_address_array[taa_index].bus = bus;
 		translate_address_array[taa_index].devfn = devfn;
