@@ -75,17 +75,37 @@ static bool do_bmp_image_authentication(struct bmp_image_header *header)
 	return true;
 }
 
-static uint32_t calculate_blt_buffer_size(struct bmp_image_header *header)
+static size_t calculate_blt_buffer_size(struct bmp_image_header *header)
 {
-	uint32_t blt_buffer_size;
+	size_t blt_buffer_size;
 
 	/* Calculate the size required for BLT buffer */
-	blt_buffer_size = header->PixelWidth * header->PixelHeight *
-			 sizeof(struct blt_pixel);
-	if (!blt_buffer_size)
+	blt_buffer_size = header->PixelWidth * header->PixelHeight * sizeof(struct blt_pixel);
+
+	if (!blt_buffer_size || blt_buffer_size > UINT32_MAX)
 		return 0;
 
 	return blt_buffer_size;
+}
+
+/* Reconcile pixel-data length implied by Width/Height/bpp with the actual file size. */
+static bool bmp_pixel_data_fits(const struct bmp_image_header *header,
+				size_t logo_size)
+{
+	if (header->ImageOffset < sizeof(struct bmp_image_header) ||
+	    header->ImageOffset > logo_size)
+		return false;
+
+	/* BMP row stride: 4-byte aligned (DWORD aligned) */
+	const size_t width_in_bits = (size_t)header->PixelWidth * header->BitPerPixel;
+	const size_t bytes_per_row = DIV_ROUND_UP(width_in_bits, 32) * 4;
+	if (!bytes_per_row)
+		return false;
+
+	const size_t available = (logo_size - header->ImageOffset) / bytes_per_row;
+
+	/* Prevent 64-bit multiplication overflow: required <= available */
+	return (size_t)header->PixelHeight <= available;
 }
 
 static int get_color_map_num(struct bmp_image_header *header)
@@ -115,7 +135,8 @@ static int get_color_map_num(struct bmp_image_header *header)
 	 * At times BMP file may have padding data between its header section and the
 	 * data section.
 	 */
-	if (header->ImageOffset - sizeof(struct bmp_image_header) <
+	if (header->ImageOffset < sizeof(struct bmp_image_header) ||
+	    header->ImageOffset - sizeof(struct bmp_image_header) <
 			 sizeof(struct bmp_color_map) * col_map_number)
 		return -1;
 
@@ -417,6 +438,11 @@ static bool convert_bmp_to_gop_blt_common(uintptr_t logo, size_t logo_size,
 	/* Authenticate BMP header and validate size against provided logo_size */
 	if (!do_bmp_image_authentication(bmp_header) || (bmp_header->Size != logo_size))
 		return false;
+
+	if (!bmp_pixel_data_fits(bmp_header, logo_size)) {
+		printk(BIOS_ERR, "%s: BMP pixel data exceeds file bounds.\n", __func__);
+		return false;
+	}
 
 	blt_buffer_size = calculate_blt_buffer_size(bmp_header);
 	if (!blt_buffer_size)
